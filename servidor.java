@@ -29,4 +29,21 @@ class ManejadorCliente implements Runnable {
     public ManejadorCliente(Socket socket) {
         this.socket = socket;
     }
+
+private boolean autenticar(String user, String pass) {
+        try (BufferedReader br = new BufferedReader(new FileReader("usuario.txt"))) {
+            String linea;
+            while ((linea = br.readLine()) != null) {
+                String[] partes = linea.split(",");
+                if (partes.length == 2) {
+                    if (partes[0].equals(user) && partes[1].equals(pass)) {
+                        return true;
+                    }
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
 }
