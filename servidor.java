@@ -46,4 +46,11 @@ private boolean autenticar(String user, String pass) {
         }
         return false;
     }
+private void guardarMensaje(String mensaje) {
+        try (FileWriter fw = new FileWriter("mensajes_" + usuarioLogueado + ".txt", true)) {
+            fw.write(mensaje + "\n");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 }
