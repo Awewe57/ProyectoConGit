@@ -53,4 +53,71 @@ private void guardarMensaje(String mensaje) {
             e.printStackTrace();
         }
     }
+    
+private List<String> leerMensajes() {
+        List<String> mensajes = new ArrayList<>();
+        File archivo = new File("mensajes_" + usuarioLogueado + ".txt");
+        if (!archivo.exists()) return mensajes;
+
+        try (BufferedReader br = new BufferedReader(new FileReader(archivo))) {
+            String linea;
+            while ((linea = br.readLine()) != null) {
+                mensajes.add(linea);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return mensajes;
+    }
+    @Override
+    public void run() {
+        try {
+            in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            out = new PrintWriter(socket.getOutputStream(), true);
+
+            out.println("Bienvenido. Ingrese usuario:");
+            String user = in.readLine();
+            out.println("Ingrese contraseña:");
+            String pass = in.readLine();
+
+            if (autenticar(user, pass)) {
+                usuarioLogueado = user;
+                out.println("Login exitoso. Bienvenido " + usuarioLogueado);
+
+                String opcion;
+                do {
+                    out.println("Elige opción: 1) Mandar mensaje 2) Ver mensajes 3) Salir");
+                    opcion = in.readLine();
+
+                    switch (opcion) {
+                        case "1":
+                            out.println("Escribe tu mensaje:");
+                            String mensaje = in.readLine();
+                            guardarMensaje(mensaje);
+                            out.println("Mensaje guardado.");
+                            break;
+                        case "2":
+                            List<String> mensajes = leerMensajes();
+                            out.println("Tus mensajes:");
+                            for (String m : mensajes) {
+                                out.println("- " + m);
+                            }
+                            break;
+                        case "3":
+                            out.println("Adiós!");
+                            break;
+                        default:
+                            out.println("Opción no válida.");
+                    }
+                } while (!opcion.equals("3"));
+
+            } else {
+                out.println("Usuario o contraseña incorrectos.");
+            }
+
+            socket.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 }
