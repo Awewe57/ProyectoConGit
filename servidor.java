@@ -96,7 +96,37 @@ private List<String> leerMensajes() {
             e.printStackTrace();
         }
         out.println("Mensaje borrado.");
-        System.out.println("DEBUG: mensaje " + indice + " borrado de " + usuarioLogueado);
+        System.out.println("Mensaje " + indice + " borrado de " + usuarioLogueado);
+    }
+
+    private void borrarUsuarioPropio() {
+        File archivoUsuarios = new File("usuario.txt");
+        List<String> lineas = new ArrayList<>();
+
+        try (BufferedReader br = new BufferedReader(new FileReader(archivoUsuarios))) {
+            String linea;
+            while ((linea = br.readLine()) != null) {
+                if (!linea.startsWith(usuarioLogueado + ",")) {
+                    lineas.add(linea);
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        try (FileWriter fw = new FileWriter(archivoUsuarios)) {
+            for (String l : lineas) {
+                fw.write(l + "\n");
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        File mensajes = new File("mensajes_" + usuarioLogueado + ".txt");
+        if (mensajes.exists()) mensajes.delete();
+
+        out.println("Tu usuario (" + usuarioLogueado + ") fue borrado del sistema.");
+        System.out.println("Usuario " + usuarioLogueado + " borrado.");
     }
 
     @Override
