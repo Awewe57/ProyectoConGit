@@ -46,6 +46,7 @@ private boolean autenticar(String user, String pass) {
         }
         return false;
     }
+
 private void guardarMensaje(String mensaje) {
         try (FileWriter fw = new FileWriter("mensajes_" + usuarioLogueado + ".txt", true)) {
             fw.write(mensaje + "\n");
@@ -69,6 +70,16 @@ private List<String> leerMensajes() {
         }
         return mensajes;
     }
+
+    private void borrarMensajes() {
+        String archivo = "mensajes_" + usuarioLogueado + ".txt";
+        File f = new File(archivo);
+        if (f.exists()) {
+            f.delete();
+            System.out.println("Todos los mensajes de " + usuarioLogueado + " borrados.");
+        }
+    }
+
     @Override
     public void run() {
         try {
