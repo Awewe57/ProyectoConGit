@@ -80,6 +80,25 @@ private List<String> leerMensajes() {
         }
     }
 
+    private void borrarMensajeEspecifico(int indice) {
+        List<String> mensajes = leerMensajes();
+        if (indice < 1 || indice > mensajes.size()) {
+            out.println("Número inválido.");
+            return;
+        }
+        mensajes.remove(indice - 1);
+
+        try (FileWriter fw = new FileWriter("mensajes_" + usuarioLogueado + ".txt")) {
+            for (String m : mensajes) {
+                fw.write(m + "\n");
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        out.println("Mensaje borrado.");
+        System.out.println("DEBUG: mensaje " + indice + " borrado de " + usuarioLogueado);
+    }
+
     @Override
     public void run() {
         try {
