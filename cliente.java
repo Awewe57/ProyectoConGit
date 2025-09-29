@@ -14,7 +14,8 @@ public class cliente {
             String respuesta;
             while ((respuesta = in.readLine()) != null) {
                 System.out.println("Servidor: " + respuesta);
-                if (respuesta.contains("Bienvenido") || respuesta.contains("Ingrese") || respuesta.contains("opción") || respuesta.contains("mensaje") || respuesta.contains("incorrectos")) {
+
+                if (respuesta.trim().endsWith(":") || respuesta.contains("Elige") || respuesta.contains("mensaje")) {
                     String entrada = teclado.readLine();
                     out.println(entrada);
                 }
