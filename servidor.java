@@ -4,209 +4,300 @@ import java.util.*;
 
 public class servidor {
     private static final int PUERTO = 5000;
+    private static final String ARCHIVO_USUARIOS = "usuario.txt";
+    private static final String CARPETA_MENSAJES = "mensajes";
 
     public static void main(String[] args) {
-        try (ServerSocket servidor = new ServerSocket(PUERTO)) {
+        try (ServerSocket serverSocket = new ServerSocket(PUERTO)) {
             System.out.println("Servidor iniciado en el puerto " + PUERTO);
 
+            File carpetaMensajes = new File(CARPETA_MENSAJES);
+            if (!carpetaMensajes.exists()) {
+                carpetaMensajes.mkdir();
+            }
+
             while (true) {
-                Socket socket = servidor.accept();
-                System.out.println("Cliente conectado");
-                new Thread(new ManejadorCliente(socket)).start();
+                Socket socket = serverSocket.accept();
+                new Thread(new ClienteHandler(socket)).start();
             }
+
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
-}
 
-class ManejadorCliente implements Runnable {
-    private Socket socket;
-    private BufferedReader in;
-    private PrintWriter out;
-    private String usuarioLogueado = null;
+    static class ClienteHandler implements Runnable {
+        private Socket socket;
+        private String usuarioLogueado;
 
-    public ManejadorCliente(Socket socket) {
-        this.socket = socket;
-    }
+        ClienteHandler(Socket socket) {
+            this.socket = socket;
+        }
 
-    private boolean autenticar(String user, String pass) {
-        try (BufferedReader br = new BufferedReader(new FileReader("usuario.txt"))) {
-            String linea;
-            while ((linea = br.readLine()) != null) {
-                String[] partes = linea.split(",");
-                if (partes.length == 2) {
-                    if (partes[0].equals(user) && partes[1].equals(pass)) {
-                        return true;
-                    }
+        @Override
+        public void run() {
+            try (
+                BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                PrintWriter out = new PrintWriter(socket.getOutputStream(), true)
+            ) {
+                
+                out.println("Usuario:");
+                String usuario = in.readLine();
+                out.println("Contraseña:");
+                String password = in.readLine();
+
+                if (!autenticarUsuario(usuario, password)) {
+                    out.println("Login fallido.");
+                    socket.close();
+                    return;
                 }
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return false;
-    }
 
-    private void guardarMensaje(String destinatario, String mensaje) {
-        String archivo = "mensajes_" + destinatario + ".txt";
-        try (FileWriter fw = new FileWriter(archivo, true)) {
-            fw.write("De " + usuarioLogueado + ": " + mensaje + "\n");
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private List<String> leerMensajes() {
-        List<String> mensajes = new ArrayList<>();
-        String archivo = "mensajes_" + usuarioLogueado + ".txt";
-        File f = new File(archivo);
-        if (!f.exists()) return mensajes;
-
-        try (BufferedReader br = new BufferedReader(new FileReader(f))) {
-            String linea;
-            while ((linea = br.readLine()) != null) {
-                mensajes.add(linea);
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return mensajes;
-    }
-
-    private void borrarMensajes() {
-        File f = new File("mensajes_" + usuarioLogueado + ".txt");
-        if (f.exists()) f.delete();
-    }
-
-    private void borrarUsuario() {
-        File temp = new File("usuario_temp.txt");
-        try (BufferedReader br = new BufferedReader(new FileReader("usuario.txt"));
-             BufferedWriter bw = new BufferedWriter(new FileWriter(temp))) {
-
-            String linea;
-            while ((linea = br.readLine()) != null) {
-                String[] partes = linea.split(",");
-                if (!partes[0].equals(usuarioLogueado)) {
-                    bw.write(linea + "\n");
-                }
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        new File("usuario.txt").delete();
-        temp.renameTo(new File("usuario.txt"));
-
-        borrarMensajes();
-    }
-
-    private List<String> listarUsuarios() {
-        List<String> usuarios = new ArrayList<>();
-        try (BufferedReader br = new BufferedReader(new FileReader("usuario.txt"))) {
-            String linea;
-            while ((linea = br.readLine()) != null) {
-                String[] partes = linea.split(",");
-                if (partes.length == 2) {
-                    usuarios.add(partes[0]);
-                }
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return usuarios;
-    }
-
-    @Override
-    public void run() {
-        try {
-            in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-            out = new PrintWriter(socket.getOutputStream(), true);
-
-            out.println("Bienvenido. Ingrese usuario:");
-            String user = in.readLine();
-            out.println("Ingrese contraseña:");
-            String pass = in.readLine();
-
-            if (autenticar(user, pass)) {
-                usuarioLogueado = user;
+                usuarioLogueado = usuario;
                 out.println("Login exitoso. Bienvenido " + usuarioLogueado);
 
-                String opcion;
-                do {
-                    out.println("Opciones: 1) Enviar mensaje 2) Ver mensajes 3) Borrar mensajes 4) Borrar usuario 5) Salir");
-                    opcion = in.readLine();
+                while (true) {
+                    out.println("\n--- MENÚ ---");
+                    out.println("1. Ver usuarios disponibles");
+                    out.println("2. Mandar mensaje");
+                    out.println("3. Ver mis mensajes");
+                    out.println("4. Bloquear usuario");
+                    out.println("5. Desbloquear usuario");
+                    out.println("6. Salir");
+                    String opcion = in.readLine();
 
                     switch (opcion) {
                         case "1":
-                            List<String> usuarios = listarUsuarios();
-                            usuarios.remove(usuarioLogueado);
-                            if (usuarios.isEmpty()) {
-                                out.println("No hay otros usuarios registrados para enviar mensajes.");
-                                break;
-                            }
-
-                            out.println("Usuarios disponibles:");
-                            for (int i = 0; i < usuarios.size(); i++) {
-                                out.println((i + 1) + ") " + usuarios.get(i));
-                            }
-                            out.println("Elige el número del usuario destinatario:");
-                            int idx;
-                            try {
-                                idx = Integer.parseInt(in.readLine()) - 1;
-                            } catch (NumberFormatException e) {
-                                out.println("Selección inválida.");
-                                break;
-                            }
-
-                            if (idx < 0 || idx >= usuarios.size()) {
-                                out.println("Selección inválida.");
-                                break;
-                            }
-
-                            String destinatario = usuarios.get(idx);
-                            out.println("Escribe tu mensaje:");
-                            String mensaje = in.readLine();
-                            guardarMensaje(destinatario, mensaje);
-                            out.println("Mensaje enviado a " + destinatario);
+                            mostrarUsuarios(out);
                             break;
-
                         case "2":
-                            List<String> mensajes = leerMensajes();
-                            if (mensajes.isEmpty()) {
-                                out.println("No tienes mensajes.");
-                            } else {
-                                out.println("Tus mensajes:");
-                                for (String m : mensajes) {
-                                    out.println("- " + m);
-                                }
-                            }
+                            enviarMensaje(in, out);
                             break;
-
                         case "3":
-                            borrarMensajes();
-                            out.println("Todos tus mensajes fueron borrados.");
+                            verMensajes(out);
                             break;
-
                         case "4":
-                            borrarUsuario();
-                            out.println("Tu usuario fue borrado. Adiós.");
-                            opcion = "5"; // salir
+                            bloquearUsuario(in, out);
                             break;
-
                         case "5":
-                            out.println("Adiós!");
+                            desbloquearUsuario(in, out);
                             break;
-
+                        case "6":
+                            out.println("Cerrando sesión...");
+                            socket.close();
+                            return;
                         default:
-                            out.println("Opción no válida.");
+                            out.println("Opción inválida.");
                     }
-                } while (!opcion.equals("5"));
-            } else {
-                out.println("Usuario o contraseña incorrectos.");
+                }
+
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+        private boolean autenticarUsuario(String usuario, String password) {
+            try (BufferedReader br = new BufferedReader(new FileReader(ARCHIVO_USUARIOS))) {
+                String linea;
+                while ((linea = br.readLine()) != null) {
+                    String[] partes = linea.split(",");
+                    if (partes[0].equals(usuario) && partes[1].equals(password)) {
+                        return true;
+                    }
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            return false;
+        }
+
+        private void mostrarUsuarios(PrintWriter out) {
+            List<String> usuarios = cargarUsuarios();
+            out.println("\nUsuarios disponibles:");
+            for (String u : usuarios) {
+                if (!u.equals(usuarioLogueado)) {
+                    out.println("- " + u);
+                }
+            }
+        }
+
+        private void enviarMensaje(BufferedReader in, PrintWriter out) throws IOException {
+            List<String> usuarios = cargarUsuarios();
+            usuarios.remove(usuarioLogueado);
+
+            if (usuarios.isEmpty()) {
+                out.println("No hay otros usuarios registrados.");
+                return;
             }
 
-            socket.close();
-        } catch (IOException e) {
-            e.printStackTrace();
+            out.println("\nUsuarios disponibles para enviar mensaje:");
+            for (int i = 0; i < usuarios.size(); i++) {
+                out.println((i + 1) + ". " + usuarios.get(i));
+            }
+            out.println("Elige el número del usuario:");
+            int idx = Integer.parseInt(in.readLine()) - 1;
+
+            if (idx < 0 || idx >= usuarios.size()) {
+                out.println("Selección inválida.");
+                return;
+            }
+
+            String receptor = usuarios.get(idx);
+
+            // Revisar bloqueos
+            if (estaBloqueado(usuarioLogueado, receptor)) {
+                out.println("No puedes enviar mensaje a " + receptor + " porque lo tienes bloqueado.");
+                return;
+            }
+            if (estaBloqueado(receptor, usuarioLogueado)) {
+                out.println("No puedes enviar mensaje a " + receptor + " porque te tiene bloqueado.");
+                return;
+            }
+
+            out.println("Escribe tu mensaje:");
+            String mensaje = in.readLine();
+
+            guardarMensaje(receptor, "De " + usuarioLogueado + ": " + mensaje);
+            out.println("Mensaje enviado a " + receptor);
+        }
+
+        private void verMensajes(PrintWriter out) {
+            File archivo = new File(CARPETA_MENSAJES, "mensajes_" + usuarioLogueado + ".txt");
+            if (!archivo.exists()) {
+                out.println("No tienes mensajes.");
+                return;
+            }
+
+            try (BufferedReader br = new BufferedReader(new FileReader(archivo))) {
+                String linea;
+                out.println("\n--- Tus mensajes ---");
+                while ((linea = br.readLine()) != null) {
+                    out.println(linea);
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+        private void bloquearUsuario(BufferedReader in, PrintWriter out) throws IOException {
+            List<String> usuarios = cargarUsuarios();
+            usuarios.remove(usuarioLogueado);
+
+            List<String> bloqueados = cargarBloqueados(usuarioLogueado);
+            usuarios.removeAll(bloqueados);
+
+            if (usuarios.isEmpty()) {
+                out.println("No hay usuarios para bloquear.");
+                return;
+            }
+
+            out.println("\nUsuarios disponibles para bloquear:");
+            for (int i = 0; i < usuarios.size(); i++) {
+                out.println((i + 1) + ". " + usuarios.get(i));
+            }
+            out.println("Elige el número del usuario:");
+            int idx = Integer.parseInt(in.readLine()) - 1;
+
+            if (idx < 0 || idx >= usuarios.size()) {
+                out.println("Selección inválida.");
+                return;
+            }
+
+            String bloqueado = usuarios.get(idx);
+            guardarBloqueado(usuarioLogueado, bloqueado);
+            out.println("Has bloqueado a " + bloqueado);
+        }
+
+        private void desbloquearUsuario(BufferedReader in, PrintWriter out) throws IOException {
+            List<String> bloqueados = cargarBloqueados(usuarioLogueado);
+
+            if (bloqueados.isEmpty()) {
+                out.println("No tienes usuarios bloqueados.");
+                return;
+            }
+
+            out.println("\nUsuarios bloqueados:");
+            for (int i = 0; i < bloqueados.size(); i++) {
+                out.println((i + 1) + ". " + bloqueados.get(i));
+            }
+            out.println("Elige el número del usuario para desbloquear:");
+            int idx = Integer.parseInt(in.readLine()) - 1;
+
+            if (idx < 0 || idx >= bloqueados.size()) {
+                out.println("Selección inválida.");
+                return;
+            }
+
+            String desbloqueado = bloqueados.get(idx);
+            eliminarBloqueado(usuarioLogueado, desbloqueado);
+            out.println("Has desbloqueado a " + desbloqueado);
+        }
+
+        private List<String> cargarUsuarios() {
+            List<String> usuarios = new ArrayList<>();
+            try (BufferedReader br = new BufferedReader(new FileReader(ARCHIVO_USUARIOS))) {
+                String linea;
+                while ((linea = br.readLine()) != null) {
+                    String[] partes = linea.split(",");
+                    usuarios.add(partes[0]);
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            return usuarios;
+        }
+
+        private void guardarMensaje(String receptor, String mensaje) {
+            File archivo = new File(CARPETA_MENSAJES, "mensajes_" + receptor + ".txt");
+            try (FileWriter fw = new FileWriter(archivo, true)) {
+                fw.write(mensaje + "\n");
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+        private boolean estaBloqueado(String usuario, String objetivo) {
+            List<String> bloqueados = cargarBloqueados(usuario);
+            return bloqueados.contains(objetivo);
+        }
+
+        private List<String> cargarBloqueados(String usuario) {
+            List<String> bloqueados = new ArrayList<>();
+            File archivo = new File("bloqueados_" + usuario + ".txt");
+            if (!archivo.exists()) {
+                return bloqueados;
+            }
+            try (BufferedReader br = new BufferedReader(new FileReader(archivo))) {
+                String linea;
+                while ((linea = br.readLine()) != null) {
+                    bloqueados.add(linea.trim());
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            return bloqueados;
+        }
+
+        private void guardarBloqueado(String usuario, String bloqueado) {
+            File archivo = new File("bloqueados_" + usuario + ".txt");
+            try (FileWriter fw = new FileWriter(archivo, true)) {
+                fw.write(bloqueado + "\n");
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+        private void eliminarBloqueado(String usuario, String desbloqueado) {
+            File archivo = new File("bloqueados_" + usuario + ".txt");
+            List<String> bloqueados = cargarBloqueados(usuario);
+            bloqueados.remove(desbloqueado);
+
+            try (FileWriter fw = new FileWriter(archivo, false)) {
+                for (String b : bloqueados) {
+                    fw.write(b + "\n");
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
 }
