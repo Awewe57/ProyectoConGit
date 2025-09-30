@@ -63,6 +63,8 @@ public class servidor {
                     out.println("4. Bloquear usuario");
                     out.println("5. Desbloquear usuario");
                     out.println("6. Salir");
+                    out.println("7. Listar archivos de otro usuario");
+                    out.println("8. Descargar archivo de otro usuario");
                     String opcion = in.readLine();
 
                     switch (opcion) {
@@ -85,6 +87,12 @@ public class servidor {
                             out.println("Cerrando sesión...");
                             socket.close();
                             return;
+                        case "7":
+                            listarArchivosOtroUsuario(in, out);
+                            break;
+                        case "8":
+                            transferirArchivoOtroUsuario(in, out);
+                            break;
                         default:
                             out.println("Opción inválida.");
                     }
@@ -143,7 +151,7 @@ public class servidor {
 
             String receptor = usuarios.get(idx);
 
-            // Revisar bloqueos
+            
             if (estaBloqueado(usuarioLogueado, receptor)) {
                 out.println("No puedes enviar mensaje a " + receptor + " porque lo tienes bloqueado.");
                 return;
@@ -230,6 +238,95 @@ public class servidor {
             String desbloqueado = bloqueados.get(idx);
             eliminarBloqueado(usuarioLogueado, desbloqueado);
             out.println("Has desbloqueado a " + desbloqueado);
+        }
+
+        private void listarArchivosOtroUsuario(BufferedReader in, PrintWriter out) throws IOException {
+            List<String> usuarios = cargarUsuarios();
+            usuarios.remove(usuarioLogueado);
+
+            if (usuarios.isEmpty()) {
+                out.println("No hay otros usuarios disponibles.");
+                return;
+            }
+
+            out.println("\nUsuarios disponibles para listar archivos:");
+            for (int i = 0; i < usuarios.size(); i++) {
+                out.println((i + 1) + ". " + usuarios.get(i));
+            }
+            out.println("Elige el número del usuario:");
+            int idx = Integer.parseInt(in.readLine()) - 1;
+
+            if (idx < 0 || idx >= usuarios.size()) {
+                out.println("Selección inválida.");
+                return;
+            }
+
+            String objetivo = usuarios.get(idx);
+            File carpetaObjetivo = new File(".");
+            File[] archivos = carpetaObjetivo.listFiles((dir, name) -> name.endsWith(".txt") && name.contains(objetivo));
+
+            if (archivos == null || archivos.length == 0) {
+                out.println("El usuario " + objetivo + " no tiene archivos .txt.");
+                return;
+            }
+
+            out.println("\nArchivos .txt de " + objetivo + ":");
+            for (int i = 0; i < archivos.length; i++) {
+                out.println((i + 1) + ". " + archivos[i].getName());
+            }
+        }
+
+        private void transferirArchivoOtroUsuario(BufferedReader in, PrintWriter out) throws IOException {
+            List<String> usuarios = cargarUsuarios();
+            usuarios.remove(usuarioLogueado);
+
+            if (usuarios.isEmpty()) {
+                out.println("No hay otros usuarios disponibles.");
+                return;
+            }
+
+            out.println("\nUsuarios disponibles para descargar archivo:");
+            for (int i = 0; i < usuarios.size(); i++) {
+                out.println((i + 1) + ". " + usuarios.get(i));
+            }
+            out.println("Elige el número del usuario:");
+            int idx = Integer.parseInt(in.readLine()) - 1;
+
+            if (idx < 0 || idx >= usuarios.size()) {
+                out.println("Selección inválida.");
+                return;
+            }
+
+            String objetivo = usuarios.get(idx);
+            File carpetaObjetivo = new File(".");
+            File[] archivos = carpetaObjetivo.listFiles((dir, name) -> name.endsWith(".txt") && name.contains(objetivo));
+
+            if (archivos == null || archivos.length == 0) {
+                out.println("El usuario " + objetivo + " no tiene archivos .txt.");
+                return;
+            }
+
+            out.println("\nArchivos .txt de " + objetivo + ":");
+            for (int i = 0; i < archivos.length; i++) {
+                out.println((i + 1) + ". " + archivos[i].getName());
+            }
+            out.println("Elige el número del archivo:");
+            int idxArchivo = Integer.parseInt(in.readLine()) - 1;
+
+            if (idxArchivo < 0 || idxArchivo >= archivos.length) {
+                out.println("Selección inválida.");
+                return;
+            }
+
+            File archivoSeleccionado = archivos[idxArchivo];
+            out.println("INICIO_ARCHIVO");
+            try (BufferedReader br = new BufferedReader(new FileReader(archivoSeleccionado))) {
+                String linea;
+                while ((linea = br.readLine()) != null) {
+                    out.println(linea);
+                }
+            }
+            out.println("FIN_ARCHIVO");
         }
 
         private List<String> cargarUsuarios() {
