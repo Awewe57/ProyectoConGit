@@ -12,7 +12,7 @@ public class cliente {
              PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
              Scanner sc = new Scanner(System.in)) {
 
-            
+    
             System.out.println(in.readLine());
             out.println(sc.nextLine());
 
@@ -23,7 +23,7 @@ public class cliente {
             System.out.println(respuesta);
 
             if (respuesta.contains("fallido")) {
-                return; 
+                return;
             }
 
             
@@ -51,6 +51,20 @@ public class cliente {
 
                 
                 while ((linea = in.readLine()) != null) {
+
+                    
+                    if (linea.equals("INICIO_ARCHIVO")) {
+                        System.out.println("Recibiendo archivo...");
+                        File archivoLocal = new File("archivo_descargado.txt");
+                        try (PrintWriter pw = new PrintWriter(new FileWriter(archivoLocal))) {
+                            while (!(linea = in.readLine()).equals("FIN_ARCHIVO")) {
+                                pw.println(linea);
+                            }
+                        }
+                        System.out.println("Archivo guardado en: " + archivoLocal.getAbsolutePath());
+                        continue;
+                    }
+
                     System.out.println(linea);
 
                     
