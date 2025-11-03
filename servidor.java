@@ -221,7 +221,7 @@ public class servidor {
         }
 
         private void autenticacion() throws IOException {
-            enviar("¿Tienes cuenta? (s/n)");
+            enviar("¿Tienes cuenta? (Escribe s para si/n para no/i para invitado)");
             String resp = in.readLine();
             if ("s".equalsIgnoreCase(resp)) {
                 while (true) {
